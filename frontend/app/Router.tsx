@@ -32,6 +32,8 @@ const components = {
   FunnelPagePure: lazy(() => import('Components/Funnels/FunnelPage')),
   MultiviewPure: lazy(() => import('Components/Session_/Multiview/Multiview')),
   AssistStatsPure: lazy(() => import('Components/AssistStats')),
+  UsabilityTestingPure: lazy(() => import('Components/UsabilityTesting/UsabilityTesting')),
+  UsabilityTestEditPure: lazy(() => import('Components/UsabilityTesting/TestEdit'))
 };
 
 
@@ -47,7 +49,9 @@ const enhancedComponents = {
   FunnelsDetails: withSiteIdUpdater(components.FunnelDetailsPure),
   FunnelIssue: withSiteIdUpdater(components.FunnelIssueDetails),
   Multiview: withSiteIdUpdater(components.MultiviewPure),
-  AssistStats: withSiteIdUpdater(components.AssistStatsPure)
+  AssistStats: withSiteIdUpdater(components.AssistStatsPure),
+  UsabilityTesting: withSiteIdUpdater(components.UsabilityTestingPure),
+  UsabilityTestEdit: withSiteIdUpdater(components.UsabilityTestEditPure)
 };
 
 const withSiteId = routes.withSiteId;
@@ -86,6 +90,8 @@ const LIVE_SESSION_PATH = routes.liveSession();
 const MULTIVIEW_PATH = routes.multiview();
 const MULTIVIEW_INDEX_PATH = routes.multiviewIndex();
 const ASSIST_STATS_PATH = routes.assistStats();
+const USABILITY_TESTING_PATH = routes.usabilityTesting();
+const USABILITY_TESTING_EDIT_PATH = routes.usabilityTestingEdit();
 
 interface RouterProps extends RouteComponentProps, ConnectedProps<typeof connector> {
   isLoggedIn: boolean;
@@ -291,6 +297,8 @@ const Router: React.FC<RouterProps> = (props) => {
                   ]}
                   component={enhancedComponents.SessionsOverview}
                 />
+                <Route exact strict path={withSiteId(USABILITY_TESTING_PATH, siteIdList)} component={enhancedComponents.UsabilityTesting} />
+                <Route exact strict path={withSiteId(USABILITY_TESTING_EDIT_PATH, siteIdList)} component={enhancedComponents.UsabilityTestEdit} />
                 <Route exact strict path={withSiteId(SESSION_PATH, siteIdList)} component={enhancedComponents.Session} />
                 <Route exact strict path={withSiteId(LIVE_SESSION_PATH, siteIdList)}
                        component={enhancedComponents.LiveSession} />
