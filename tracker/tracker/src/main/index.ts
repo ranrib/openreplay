@@ -1,8 +1,10 @@
 import App, { DEFAULT_INGEST_POINT } from './app/index.js'
+
 export { default as App } from './app/index.js'
 
 import { UserAnonymousID, CustomEvent, CustomIssue } from './app/messages.gen.js'
 import * as _Messages from './app/messages.gen.js'
+
 export const Messages = _Messages
 export { SanitizeLevel } from './app/sanitizer.js'
 
@@ -26,6 +28,8 @@ import Network from './modules/network.js'
 import ConstructedStyleSheets from './modules/constructedStyleSheets.js'
 import Selection from './modules/selection.js'
 import Tabs from './modules/tabs.js'
+import UserTestManager from './modules/userTesting/index.js'
+
 import { IN_BROWSER, deprecationWarn, DOCS_HOST } from './utils.js'
 import FeatureFlags, { IFeatureFlag } from './modules/featureFlags.js'
 import type { Options as AppOptions } from './app/index.js'
@@ -92,7 +96,10 @@ function processOptions(obj: any): obj is Options {
 
 export default class API {
   public featureFlags: FeatureFlags
+  private readonly userTestManager = new UserTestManager()
+
   private readonly app: App | null = null
+
   constructor(private readonly options: Options) {
     if (!IN_BROWSER || !processOptions(options)) {
       return
@@ -255,6 +262,7 @@ export default class API {
     }
     return this.app.getSessionToken()
   }
+
   getSessionID(): string | null | undefined {
     if (this.app === null) {
       return null
@@ -268,6 +276,7 @@ export default class API {
     }
     return this.app.getTabId()
   }
+
   sessionID(): string | null | undefined {
     deprecationWarn("'sessionID' method", "'getSessionID' method", '/')
     return this.getSessionID()
@@ -285,6 +294,7 @@ export default class API {
       this.app.session.setUserID(id)
     }
   }
+
   userID(id: string): void {
     deprecationWarn("'userID' method", "'setUserID' method", '/')
     this.setUserID(id)
@@ -295,6 +305,7 @@ export default class API {
       this.app.send(UserAnonymousID(id))
     }
   }
+
   userAnonymousID(id: string): void {
     deprecationWarn("'userAnonymousID' method", "'setUserAnonymousID' method", '/')
     this.setUserAnonymousID(id)
@@ -305,6 +316,7 @@ export default class API {
       this.app.session.setMetadata(key, value)
     }
   }
+
   metadata(key: string, value: string): void {
     deprecationWarn("'metadata' method", "'setMetadata' method", '/')
     this.setMetadata(key, value)
@@ -355,5 +367,9 @@ export default class API {
         this.app.send(msg)
       }
     }
+  }
+
+  createTestingWidget() {
+    this.userTestManager.createGreeting('Test name goes here,', false, false)
   }
 }
