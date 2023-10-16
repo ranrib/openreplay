@@ -78,6 +78,8 @@ export default class Assist {
     options?: Partial<Options>,
     private readonly noSecureMode: boolean = false,
   ) {
+    // @ts-ignore
+    window.__OR_ASSIST_VERSION = this.version
     this.options = Object.assign({
         session_calling_peer_key: '__openreplay_calling_peer',
         session_control_peer_key: '__openreplay_control_peer',
@@ -529,7 +531,6 @@ export default class Assist {
         })
 
         call.answer(lStreams[call.peer].stream)
-
         document.addEventListener('visibilitychange', () => {
           initiateCallEnd()
         })
