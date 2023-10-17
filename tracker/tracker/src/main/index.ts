@@ -96,7 +96,7 @@ function processOptions(obj: any): obj is Options {
 
 export default class API {
   public featureFlags: FeatureFlags
-  private readonly userTestManager = new UserTestManager()
+  private readonly userTestManager: UserTestManager
 
   private readonly app: App | null = null
 
@@ -151,6 +151,7 @@ export default class API {
       Tabs(app)
       this.featureFlags = new FeatureFlags(app)
       ;(window as any).__OPENREPLAY__ = this
+      this.userTestManager = new UserTestManager(app)
 
       app.attachStartCallback(() => {
         if (options.flags?.onFlagsLoad) {
