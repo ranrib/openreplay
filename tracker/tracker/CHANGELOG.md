@@ -2,6 +2,7 @@
 
 - networkRequest message changed to include `TransferredBodySize`
 - tracker now attempts to create proxy for beacon api as well (if its in scope)
+- user testing module for tracker
 
 # 9.0.9
 
