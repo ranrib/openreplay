@@ -22,11 +22,11 @@
     "replace-versions": "npm run replace-pkg-version && npm run replace-req-version",
     "replace-pkg-version": "replace-in-files lib/* cjs/* --string='PACKAGE_VERSION' --replacement=$npm_package_version",
     "replace-req-version": "replace-in-files lib/* cjs/* --string='REQUIRED_TRACKER_VERSION' --replacement='8.0.0'",
-    "prepublishOnly": "npm run build",
     "prepare": "cd ../../ && husky install tracker/.husky/",
     "lint-front": "lint-staged",
     "test": "jest --coverage=false",
     "test:ci": "jest --coverage=true",
+    "prepublishOnly": "npm run test && npm run build",
     "postversion": "npm run build"
   },
   "dependencies": {
