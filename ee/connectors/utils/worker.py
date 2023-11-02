@@ -100,117 +100,68 @@ class ProjectFilter:
         self.sessions_lifespan = CachedSessions()
         self.non_valid_sessions_cache = dict()
 
-    def is_valid(self, sessionId: int):
-        if len(self.project_filter) == 0:
+    def is_valid(self, sid: int):
+        if not self.valid_pids:
             return True
-        elif sessionId in self.sessions_lifespan.session_project.keys():
-            return True
-        elif sessionId in self.non_valid_sessions_cache.keys():
-            return False
+        elif sid in self.cache.keys():
+            return self.cache[sid]
         else:
-            projectId = project_from_session(sessionId)
-            if projectId not in self.project_filter:
-                self.non_valid_sessions_cache[sessionId] = int(datetime.now().timestamp())
-                return False
-            else:
-                return True
-
-    def already_checked(self, sessionId):
-        if len(self.project_filter) == 0:
-            return True, True
-        elif sessionId in self.sessions_lifespan.session_project.keys():
-            return True, True
-        elif sessionId in self.non_valid_sessions_cache.keys():
-            return True, False
-        else:
-            return False, None
-
-    def are_valid(self, sessionIds: list[int]):
-        valid_sessions = list()
-        if len(self.project_filter) == 0:
-            return sessionIds
-        projects_session = project_from_sessions(list(set(sessionIds)))
-        current_datetime = int(datetime.now().timestamp())
-        for projectId, sessionId in projects_session:
-            if projectId not in self.project_filter:
-                self.non_valid_sessions_cache[sessionId] = current_datetime
-            else:
-                valid_sessions.append(sessionId)
-        return valid_sessions
-
-    def handle_clean(self):
-        if len(self.project_filter) == 0:
-            return
-        else:
-            current_timestamp = datetime.now().timestamp()
-            self.non_valid_sessions_cache = {sessionId: start_timestamp for sessionId, start_timestamp in
-                                             self.non_valid_sessions_cache.items() if
-                                             self.max_lifespan > current_timestamp - start_timestamp}
+            pid = await project_id_from_session_ids(sids)
+            valid = self.cache[sid] = pid not in self.valid_pids
+            return valid
 
 
-def read_from_kafka(pipe: Connection, params: dict):
-    global UPLOAD_RATE, max_kafka_read
-    # try:
-    # asyncio.run(pg_client.init())
-    kafka_consumer = init_consumer()
-    project_filter = params['project_filter']
-    capture_messages = list()
-    capture_sessions = list()
-    while True:
-        to_decode = list()
-        sessionIds = list()
-        start_time = datetime.now().timestamp()
-        broken_batchs = 0
-        n_messages = 0
-        while datetime.now().timestamp() - start_time < UPLOAD_RATE and max_kafka_read > n_messages:
-            try:
-                msg = kafka_consumer.poll(5.0)
-            except Exception as e:
-                print('[WORKER Exception]', e)
-            if msg is None:
-                continue
-            n_messages += 1
-            try:
-                sessionId = codec.decode_key(msg.key())
-            except Exception:
-                broken_batchs += 1
-                continue
-            checked, is_valid = project_filter.already_checked(sessionId)
-            if not checked:
-                capture_sessions.append(sessionId)
-                capture_messages.append(msg.value())
-            elif is_valid:
-                to_decode.append(msg.value())
-                sessionIds.append(sessionId)
-            # if project_filter.is_valid(sessionId):
-            #     to_decode.append(msg.value())
-            #     sessionIds.append(sessionId)
-        valid_sessions = project_filter.are_valid(list(set(capture_sessions)))
-        while capture_sessions:
-            sessId = capture_sessions.pop()
-            msg = capture_messages.pop()
-            if sessId in valid_sessions:
-                sessionIds.append(sessId)
-                to_decode.append(msg)
-        if n_messages != 0:
-            print(
-            f'[WORKER INFO-bg] Found {broken_batchs} broken batch over {n_messages} read messages ({100 * broken_batchs / n_messages:.2f}%)')
-        else:
-            print('[WORKER WARN-bg] No messages read')
-        non_valid_updated = project_filter.non_valid_sessions_cache
-        pipe.send((non_valid_updated, sessionIds, to_decode))
-        continue_signal = pipe.recv()
-        if continue_signal == 'CLOSE':
-            print('[WORKER SHUTDOWN-reader] Reader shutting down')
-            break
-        kafka_consumer.commit()
-    print('[WORKER INFO] Closing consumer')
-    close_consumer(kafka_consumer)
-    print('[WORKER INFO] Closing pg connection')
-    # asyncio.run(pg_client.terminate())
-    print('[WORKER INFO] Successfully closed reader task')
-    # except Exception as e:
-    #     print('[WARN]', repr(e))
+def project_id_from_session_ids(sids):
+    return pid
+
+
+async def main(pipe: Connection, params: dict):
+    async for msg in kafka.queue('redshift', threshold=config("CONSUMER_THRESHOLD"), timeout=config('CONSUMER_TIMEOUT')):
+        if msg is None:
+            logging.debug('no message on redshift queue')
+            asyncio.sleep(CONSUMER_TIMEOUT)
+            continue
+        
+        task = asyncio.get_event_loop().create_task(process(msg))
+        # self.tasks.add(task)
+
+        
+def process(msgs):
+    sids = [codec.decode_key(msg.key()) for msg in msgs]
+
+    # MAKE IT WORK
+    # MAKE IT GOOD
+    # MAKE IT FAST
+
+    # pid = project identifier
+    # sid = session identifier
+    sid_to_pid = zip(sids, project_id_from_sesssion_ids(sids))
+
+    if valid:
+       validated.append(msg)
+    elif not checked:
+        valid = await project_filter.is_valid(msg.key())
+
+    while capture_sessions:
+        sessId = capture_sessions.pop()
+        msg = capture_messages.pop()
+        if sessId in valid_sessions:
+            sessionIds.append(sessId)
+            to_decode.append(msg)
+    non_valid_updated = project_filter.non_valid_sessions_cache
+    pipe.send((non_valid_updated, sessionIds, to_decode))
+    continue_signal = pipe.recv()
+    if continue_signal == 'CLOSE':
+        print('[WORKER SHUTDOWN-reader] Reader shutting down')
+        break
+    kafka_consumer.commit()
+print('[WORKER INFO] Closing consumer')
+close_consumer(kafka_consumer)
+print('[WORKER INFO] Closing pg connection')
+# asyncio.run(pg_client.terminate())
+print('[WORKER INFO] Successfully closed reader task')
+# except Exception as e:
+#     print('[WARN]', repr(e))
 
 
 def into_batch(batch: list[Event | DetailedEvent], session_id: int, n: Session):
@@ -222,16 +173,6 @@ def into_batch(batch: list[Event | DetailedEvent], session_id: int, n: Session):
 
 
 def project_from_session(sessionId: int):
-    """Search projectId of requested sessionId in PG table sessions"""
-    with pg_client.PostgresClient().get_live_session() as conn:
-        cur = conn.execute(
-            conn.mogrify("SELECT project_id FROM sessions WHERE session_id=%(sessionId)s LIMIT 1",
-                         {'sessionId': sessionId})
-        )
-        res = cur.fetchone()
-    if res is None:
-        print(f'[WORKER WARN] sessionid {sessionId} not found in sessions table')
-        return None
     return res['project_id']
 
 
@@ -242,8 +183,9 @@ def project_from_sessions(sessionIds: list[int]):
         sessIds = sessionIds[-1000:]
         try:
             with pg_client.PostgresClient().get_live_session() as conn:
+                types = Enum.FRUIT,  Enum.MEAT, Enum.FLOWER
                 cur = conn.execute(
-                    "SELECT session_id, project_id FROM sessions WHERE session_id IN ({sessionIds})".format(
+                    "SELECT session_id, project_id FROM sessions WHERE session_id IN ({followers})".format(
                                  sessionIds=','.join([str(sessId) for sessId in sessIds])
                     )
                 )
